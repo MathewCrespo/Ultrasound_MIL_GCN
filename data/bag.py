@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import torch.utils.data as data_utils
 from torchvision import datasets, transforms
-from .BMDataset import BMDataset
+from data.BMDataset import BMDataset
 from torch.utils.data import Dataset, DataLoader
 
 
@@ -101,7 +101,7 @@ class BMBags(Dataset):
 
     def __getitem__(self, index):
         bag = self.bags_list[index]
-        label = [max(self.labels_list[index]), self.labels_list[index]]
+        label = max(self.labels_list[index])
         return bag, label
 
 
@@ -125,27 +125,31 @@ if __name__ == "__main__":
         ])
 
 
-    trainset = BMDataset(data_root + '/test', train_transform)
-    #testset = BMDataset(data_root + '/test', test_transform)
-
+    trainset = BMDataset(data_root + '/train', train_transform)
     trainbag = BMBags(dataset = trainset, bag_type=0)
-    #print('The shape of trainbag is {}'.format(trainbag.shape))
-    print(len(trainbag))
-    #print(trainbag[0][1])
-    #print(trainbag[1][1])
+
+    testset = BMDataset(data_root+'/test',test_transform)
+    testbag = BMBags(dataset=testset, bag_type=0)
     
     bag_state = []
     instance_num = []
-
     for i in range(len(trainbag)):
-        state = trainbag[i][1][0].int().tolist()
+        state = trainbag[i][1].int().tolist()
         bag_state.append(state)
     
     positive = bag_state.count(1)
     print ('There are {} positive bags out of {} bags'.format(positive, len(trainbag)))
     
-
-    #for i in
+    bag_state = []
+    instance_num = []
+    for i in range(len(testbag)):
+        state = testbag[i][1].int().tolist()
+        bag_state.append(state)
+    
+    positive = bag_state.count(1)
+    print ('There are {} positive bags out of {} bags'.format(positive, len(testbag)))
+    
+    
     #testbag = BMBags(dataset = testset)
     '''
     train_loader = data_utils.DataLoader(BMBags(BMDataset),

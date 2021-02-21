@@ -8,6 +8,11 @@ import xml.etree.cElementTree as ET
 from tqdm import tqdm
 import random
 import pandas as pd
+from random import randint,sample
+
+'''
+BMBags create bags by each patient rather than by random instances.
+'''
 
 def is_image_file(filename):
     return any(filename.endswith(extension) for extension in [".png", ".jpg", ".jpeg", ".bmp"])
@@ -15,7 +20,7 @@ def is_image_file(filename):
 def is_xml_file(filename):
     return filename.endswith('xml')
 
-class BMDataset(Dataset):
+class PatientBags(Dataset):
     '''
     This Dataset is for doing benign/maglignant classification with US or SWE or two modal together
 
@@ -26,7 +31,7 @@ class BMDataset(Dataset):
         modality: (int) indicate which modality to use. 0: US 1: SWE 2: US & SWE
     '''
     def __init__(self, root, pre_transform=None, modality=0, cls_task='BM', 
-    metric_mode='patient', crop_mode = False):
+    metric_mode='patient', crop_mode = True, mix_mode=1):
         
         self.modality = modality
         self.root = root
@@ -38,8 +43,29 @@ class BMDataset(Dataset):
         self.ALNM_num = 1
         self.cls_task = cls_task
         self.metric_mode = metric_mode
+        self.num_pbag = 0
         self.scan()
+        self.neg_ins, self.num_neg_ins = self.get_neg_ins()
+        #print(len(self.neg_ins))
+        self.cut_null()
+        #print(self.patient_dict)
+        #print(len(self.patient_dict[155]['images']['grey']))
+        
         self.crop_mode = crop_mode
+
+        # different ways to mix bags
+        self.mix_mode = mix_mode
+
+    def cut_null(self):  # delete empty bags
+        null_record = []
+        for i in range(len(self.patient_dict)):
+            now_patient = self.patient_dict[i]
+            if len(now_patient['images']['grey']) == 0:  # empty bag
+                null_index = i
+                null_record.append(null_index)
+
+        self.patient_dict = [self.patient_dict[i] for i in range(len(self.patient_dict)) if i not in null_record]
+        #print(null_record)
 
     def crop(self, img, size=28):
             crop_bag = []
@@ -52,9 +78,63 @@ class BMDataset(Dataset):
             
             return torch.stack([x for x in crop_bag], dim=0)      #original code  
     
-    # def create_bags(self)   bag function?
+    def get_neg_ins (self):
+        neg_ins = []
+        for i in range(len(self.patient_dict)):
+            now_patient = self.patient_dict[i]
+            label = now_patient['label'][0]
+            if label == 0:  # benign
+                neg_ins_path = now_patient['images']['grey']
+                neg_ins.extend(neg_ins_path)
+        return neg_ins, len(neg_ins)
+
 
     def __getitem__(self, idx):
+        ### start from patient_dict and create a dict
+        #print(idx)
+        now_patient = self.patient_dict[idx]
+        label = now_patient['label'][0]
+        grey_img_path = now_patient['images']['grey']
+        grey_imgs = []
+        if self.mix_mode == 0:  # no operations
+            for path in grey_img_path:
+                grey_img = Image.open(path).convert('RGB')
+                if self.pre_transform is not None:
+                    grey_img = self.pre_transform(grey_img)
+                if self.crop_mode:
+                    grey_img = self.crop(grey_img)
+                grey_imgs.append(grey_img)
+            bag_imgs = torch.stack([x for x in grey_imgs], dim=0)
+            return bag_imgs, label
+
+        elif self.mix_mode == 1:  # mix neg instances
+            
+            if label.item()==1:
+                num_pos_ins = len(grey_img_path)
+                if num_pos_ins >2:
+                    replace_num = randint(1,num_pos_ins-1)
+                else:
+                    replace_num = num_pos_ins - 1
+                
+
+                replace_neg = sample(self.neg_ins, replace_num)
+                #print(replace_neg)
+                grey_img_path = grey_img_path[0:len(grey_img_path)-replace_num]
+                grey_img_path.extend(replace_neg)
+            else:
+                replace_num = 0
+            
+            for path in grey_img_path:
+                grey_img = Image.open(path).convert('RGB')
+                if self.pre_transform is not None:
+                    grey_img = self.pre_transform(grey_img)
+                if self.crop_mode:
+                    grey_img = self.crop(grey_img)
+                grey_imgs.append(grey_img)
+
+            bag_imgs = torch.stack([x for x in grey_imgs], dim=0)
+            return bag_imgs, label, replace_num   # when training and testing, rember to add (imgs, label, _) in ...
+        '''
          # label
         if self.cls_task == "BM":
             label = self.label_list[idx][0]
@@ -95,13 +175,14 @@ class BMDataset(Dataset):
             img_grey = self.crop(img_grey)
             img_pure = self.crop(img_pure)
             return [img_grey, img_pure], label
-
+        '''
 
 
     def scan(self):
+        # 1- malignant  0-benign
         self.M_path = os.path.join(self.root, "Malignant")
         self.B_path = os.path.join(self.root, "Benign")
-
+        # number of M
         ##scan benign path
         idx = 0
         for path in [self.B_path, self.M_path]:
@@ -171,25 +252,40 @@ class BMDataset(Dataset):
         return ALNM_label
 
     def __len__(self):
-        return len(self.label_list)
+        return len(self.patient_dict)
 
-    def stat (self):
-        all_len = len(self.label_list)
-        label = []
-        for i in range(all_len):
-            label.append(self.label_list[i][0].tolist())
-        pos_ins = label.count(1)
-        neg_ins = label.count(0)
-        return all_len, pos_ins, neg_ins
+
 ##Test Code
 if __name__=="__main__":
-    root =  '/media/hhy/data/USdata/MergePhase1/test_0.3/test'
-    pre_transform = transforms.Compose([
+
+    root =  '/media/hhy/data/USdata/MergePhase1/test_0.3'
+    pre = transforms.Compose([
     transforms.Resize((224,224)),
     transforms.ToTensor(),
-    ]
-    )
+    ])
 
-    trainset = BMDataset(root)
-    all, pos, neg = trainset.stat()
-    print(all, pos, neg)
+    trainset = PatientBags(root+'/train',pre_transform= pre)
+
+    print(trainset[0][0].shape)
+    '''
+    bag_state = []
+    
+    # statistics
+    for i in range(len(trainset)):
+        bag_label = trainset[i][1].int().tolist()
+        bag_state.append(bag_label)
+    maglinant_num_train = bag_state.count(1)
+
+    testset = PatientBags(root+'/test', pre_transform=pre)
+    bag_state = []
+    for i in range(len(testset)):
+        bag_label = testset[i][1].int().tolist()
+        bag_state.append(bag_label)
+    maglinant_num_test = bag_state.count(1)
+    print('{} maglinant bags out of {} in trainset'.format(maglinant_num_train, len(trainset)))
+    #print('{} maglinant bags out of {} in testset'.format(maglinant_num_test, len(testset)))
+    '''
+
+    
+    
+

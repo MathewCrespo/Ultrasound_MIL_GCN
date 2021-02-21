@@ -14,6 +14,7 @@ from torch.optim import Adam
 import torch.optim as optim
 from torchvision.transforms import transforms
 from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import WeightedRandomSampler
 import torch
 import torch.nn as nn
 import argparse
@@ -23,11 +24,6 @@ try:
 except ImportError:
     import collections as collections_abc
 
-def my_collate(batch):
-    data = [item[0] for item in batch]
-    label = [item[1] for item in batch]
-    label = torch.LongTensor(label)
-    return data, label
 
 class Config(object):
     '''
@@ -39,15 +35,15 @@ class Config(object):
         #self.log_dir = '/media/hhy/data/code_results/MILs/MIL_H_Attention'
 
         self.root = '/remote-home/my/Ultrasound_CV/data/Ruijin/clean'
-        self.log_dir = '/remote-home/my/hhy/Ultrasound_MIL/code_results'
+        self.log_dir = '/remote-home/my/hhy/Ultrasound_MIL/experiments/PLN1/weighted_sampler+res18/fold4'
         if not os.path.exists(self.log_dir):
-            os.mkdir(self.log_dir)
+            os.makedirs(self.log_dir)
         ##training config
         self.lr = 1e-4
         self.epoch = 50
         self.resume = -1
         self.batch_size = 1
-        self.net = Attention()
+        self.net = Res_Attention()
         self.net.cuda()
 
         self.optimizer = Adam(self.net.parameters(), lr=self.lr)
@@ -55,40 +51,34 @@ class Config(object):
 
         
         self.logger = Logger(self.log_dir)
-
-        self.train_transform = transforms.Compose([
-                    transforms.RandomResizedCrop(224),
-                    transforms.ColorJitter(brightness = 0.25),
-                    transforms.RandomHorizontalFlip(0.5),
-                    transforms.RandomVerticalFlip(0.5),
-                    # transforms.ColorJitter(0.25, 0.25, 0.25, 0.25),
-                    transforms.ToTensor()
-        ])
+        self.train_transform =  transforms.Compose([
+                transforms.Resize((224,224)),
+                transforms.RandomResizedCrop((224,224)),
+                transforms.RandomHorizontalFlip(0.5),
+                transforms.RandomVerticalFlip(0.5),
+                transforms.ColorJitter(0.25,0.25,0.25,0.25),
+                transforms.ToTensor()
+    ])
         self.test_transform = transforms.Compose([
                     transforms.Resize((224,224)),
                     transforms.ToTensor()
         ])
 
-        self.trainbag = RuijinBags(self.root, [0,1,2,3],self.test_transform)
-        self.testbag = RuijinBags(self.root, [4], self.test_transform)
-
-        # patient bags
-        #self.trainbag = PatientBags(self.data_root+'/train', self.train_transform)
-        #self.testbag = PatientBags(self.data_root+'/test', self.test_transform)
-        '''
-        # random 
+        self.label_name = "手术淋巴结情况（0未转移；1转移）"
+        self.trainbag = RuijinBags(self.root, [0,1,2,3],self.train_transform,
+                    label_name=self.label_name)
+        self.testbag = RuijinBags(self.root, [4], self.test_transform,
+                    label_name=self.label_name)
         
-        self.train_set = BMDataset(self.data_root+'/train',self.train_transform)
-        self.test_set = BMDataset(self.data_root+'/test',self.test_transform)
-        self.trainbag = BMBags(dataset=self.train_set)
-        self.testbag = BMBags(dataset=self.test_set)
-        '''
+        train_label_list = list(map(lambda x: int(x['label']), self.trainbag.patient_info))
+        pos_ratio = sum(train_label_list) / len(train_label_list)
+        print(pos_ratio)
+        train_weight = [(1-pos_ratio) if x>0 else pos_ratio for x in train_label_list]
 
-        #self.train_loader = DataLoader(self.trainbag, batch_size=1, shuffle=True, num_workers=8)
-        #self.val_loader = DataLoader(self.testbag, batch_size=1, shuffle=False, num_workers=8)
-        self.train_loader = DataLoader(self.trainbag, batch_size=4, collate_fn = my_collate, shuffle=True, num_workers=8)
-        #print (len(self.train_loader))
-        self.val_loader = DataLoader(self.testbag, batch_size=4, collate_fn = my_collate, shuffle=False, num_workers=8)
+        self.train_sampler = WeightedRandomSampler(weights=train_weight, num_samples=len(self.trainbag))
+        self.train_loader = DataLoader(self.trainbag, batch_size=self.batch_size, num_workers=8,
+                            sampler=self.train_sampler)
+        self.val_loader = DataLoader(self.testbag, batch_size=self.batch_size, shuffle=False, num_workers=8)
 
         if self.resume > 0:
             self.net, self.optimizer, self.lrsch, self.loss, self.global_step = self.logger.load(self.net, self.optimizer, self.lrsch, self.loss, self.resume)

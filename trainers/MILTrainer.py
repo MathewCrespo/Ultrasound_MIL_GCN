@@ -51,21 +51,20 @@ class MILTrainer(object):
         prob = []
         pred = []
         target = []
-        for batch_idx, (data, label) in enumerate(tqdm(self.train_loader, ascii=True, ncols=60)):
-            bag_label = label[0]
-            # for debug
-            #num_instance = len(label[1][0])
-            #print('Bag label is {} and the number of instances is {}'.format(bag_label,num_instance))
-            
-            data, bag_label = data.cuda(), bag_label.cuda()
-
+        for batch_data, batch_label in (tqdm(self.train_loader, ascii=True, ncols=60)):
             # reset gradients
             self.optimizer.zero_grad()
-            # calculate loss and metrics
-            loss, prob_label, _ = self.net.calculate_objective(data, bag_label)
-            train_loss += loss.data[0]
-            error, predicted_label = self.net.calculate_classification_error(data, bag_label)
-            train_error += error
+            for idx, data in enumerate(batch_data):
+                data = data.cuda()
+                bag_label = batch_label[idx].cuda()
+                loss, prob_label, _ = self.net.calculate_objective(data, bag_label)
+                train_loss += loss.data[0]
+                error, predicted_label = self.net.calculate_classification_error(data, bag_label)
+                train_error += error
+                target.append(bag_label.cpu().detach().numpy().ravel()) # bag_label or label??
+                pred.append(predicted_label.cpu().detach().numpy().ravel())
+                prob.append(prob_label.cpu().detach().numpy().ravel())
+
             # backward pass
             loss.backward()
             # step
@@ -78,9 +77,7 @@ class MILTrainer(object):
             pred.append(predicted_label.cpu().detach().float().tolist()[0])
             prob.append(prob_label.cpu().detach().float().tolist()[0])
             '''
-            target.append(bag_label.cpu().detach().numpy().ravel()) # bag_label or label??
-            pred.append(predicted_label.cpu().detach().numpy().ravel())
-            prob.append(prob_label.cpu().detach().numpy().ravel())
+            
         # calculate loss and error for epoch
         '''
         print('target is {}'.format(target))
@@ -104,24 +101,25 @@ class MILTrainer(object):
         target = []
         pred = []
         prob = []
-        for batch_idx, (data, label) in enumerate(tqdm(self.test_loader, ascii=True, ncols = 60)):
-            bag_label = label[0]
+        for batch_data, batch_label in tqdm(self.test_loader, ascii=True, ncols = 60):
+            for idx, data in enumerate(batch_data):
+                data = data.cuda()
+                bag_label = batch_label[idx].cuda()
             
-            data, bag_label = data.cuda(), bag_label.cuda()
-            
-            loss, prob_label, attention_weights = self.net.calculate_objective(data, bag_label)
-            test_loss += loss.data[0]
-            error, predicted_label = self.net.calculate_classification_error(data, bag_label)
-            test_error += error
+                loss, prob_label, attention_weights = self.net.calculate_objective(data, bag_label)
+                test_loss += loss.data[0]
+                error, predicted_label = self.net.calculate_classification_error(data, bag_label)
+                test_error += error
             # label or bag label?
-            target.append(bag_label.cpu().detach().numpy().ravel())
-            pred.append(predicted_label.cpu().detach().numpy().ravel())
-            prob.append(prob_label.cpu().detach().numpy().ravel())
+                target.append(bag_label.cpu().detach().numpy().ravel())
+                pred.append(predicted_label.cpu().detach().numpy().ravel())
+                prob.append(prob_label.cpu().detach().numpy().ravel())
 
             
-
+        '''
         test_error /= len(self.test_loader)
         test_loss /= len(self.test_loader)
+        '''
         # target prob pred?
         self.log_metric("Test", target, prob, pred)
 
@@ -141,10 +139,10 @@ class MILTrainer(object):
 
         self.logger.log_scalar(prefix+'/'+'AUC', auc_score, print=True)
         self.logger.log_scalar(prefix+'/'+'Acc', acc, print= True)
-        self.logger.log_scalar(prefix+'/'+'true_precision', cls_report['True']['precision'], print= True)
-        self.logger.log_scalar(prefix+'/'+'false_precision', cls_report['False']['precision'], print= True)
-        self.logger.log_scalar(prefix+'/'+'true_recall', cls_report['True']['recall'], print= True)
-        self.logger.log_scalar(prefix+'/'+'false_recall', cls_report['False']['recall'], print= True)
+        self.logger.log_scalar(prefix+'/'+'Malignant_precision', cls_report['1']['precision'], print= True)
+        self.logger.log_scalar(prefix+'/'+'Benign_precision', cls_report['0']['precision'], print= True)
+        self.logger.log_scalar(prefix+'/'+'Malignant_recall', cls_report['1']['recall'], print= True)
+        self.logger.log_scalar(prefix+'/'+'Benign_recall', cls_report['0']['recall'], print= True)
         '''
         self.logger.log_scalar(prefix+'/'+'Accuracy', acc, print=True)
         self.logger.log_scalar(prefix+'/'+'Precision', cls_report['1.0']['precision'], print=True)

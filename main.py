@@ -14,7 +14,7 @@ import argparse
 from importlib import import_module
 
 parser = argparse.ArgumentParser(description='Ultrasound CV Framework')
-parser.add_argument('--config',type=str,default='grey_SWE')
+parser.add_argument('--config',type=str,default='weighted_sampler')
 
 if __name__=='__main__':
     args = parser.parse_args()
@@ -25,5 +25,6 @@ if __name__=='__main__':
     logger.backup_files([os.path.join('./configs',args.config+'.py')])
     trainer = configs['trainer']
     for epoch in range(logger.global_step, configs['epoch']):
+        print('Now epoch {}'.format(epoch))
         trainer.train()
         trainer.test()
