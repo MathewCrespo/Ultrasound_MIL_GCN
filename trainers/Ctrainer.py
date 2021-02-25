@@ -28,12 +28,6 @@ from importlib import import_module
 class Ctrainer(object):
     def __init__(self, net, optimizer, lrsch, loss, train_loader, val_loader, logger, start_epoch,
                  save_interval=10):
-        '''
-        mode:   0: only single task--combine
-                1: multi task added, three losses are simply added together.
-                2: Ldiff between two extracted features
-
-        '''
         self.net = net
         self.optimizer = optimizer
         self.lrsch = lrsch
@@ -59,7 +53,7 @@ class Ctrainer(object):
             clinical_info = clinical_info.cuda()
             loss, prob_label = self.net.calculate_objective(clinical_info, bag_label)
             train_loss += loss.data[0]
-            error, predicted_label = self.net.calculate_classification_error(data, clinical_info, bag_label)
+            error, predicted_label = self.net.calculate_classification_error(clinical_info, bag_label)
             train_error += error
             target.append(bag_label.cpu().detach().numpy().ravel())  # bag_label or label??
             pred.append(predicted_label.cpu().detach().numpy().ravel())
@@ -104,9 +98,9 @@ class Ctrainer(object):
             clinical_info = clinical_info.cuda()
             bag_label = label.cuda()
 
-            loss, prob_label= self.net.calculate_objective(data, clinical_info, bag_label)
+            loss, prob_label= self.net.calculate_objective(clinical_info, bag_label)
             test_loss += loss.data[0]
-            error, predicted_label = self.net.calculate_classification_error(data, clinical_info, bag_label)
+            error, predicted_label = self.net.calculate_classification_error(clinical_info, bag_label)
             test_error += error
                 # label or bag label?
             target.append(bag_label.cpu().detach().numpy().ravel())

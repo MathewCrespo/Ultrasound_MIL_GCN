@@ -13,7 +13,7 @@ from random import randint,sample
 
 class RuijinBags(Dataset):
     def __init__(self, root, sub_list, pre_transform, crop_mode=False, mix_mode=0,
-                 label_name="pLN分组3（1为0-2枚淋巴结转移；2为＞2枚淋巴结转移）", clinical_list=None, info_type = 0):
+                 label_name="手术淋巴结情况（0未转移；1转移）", clinical_list=None, info_type = 1):
         self.root = root
         self.label_name = label_name
         self.clinical_list = clinical_list

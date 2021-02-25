@@ -518,6 +518,7 @@ class C_Attention(nn.Module):
 
 class Clinical(nn.Module): # clinical info to do prediction
     def __init__(self, C=0):
+        super(Clinical, self).__init__()
         self.C=C
         self.classifier = nn.Sequential(
             nn.Linear(self.C, 1),
@@ -525,6 +526,7 @@ class Clinical(nn.Module): # clinical info to do prediction
         )
     def forward(self,x):
         x = x.squeeze(0)
+        #x = torch.transpose(x,1,0)
         Y_prob = self.classifier(x)
         Y_hat = torch.ge(Y_prob, 0.5).float()
         return Y_prob, Y_hat
@@ -544,7 +546,3 @@ class Clinical(nn.Module): # clinical info to do prediction
         #print("Y_prob is：", Y_prob)
         return neg_log_likelihood, Y_prob
 
-    def calculate_weights(self, C):
-        Y_prob, Y_hat = self.forward(C)
-        Y_prob = torch.clamp(Y_prob, min=1e-5, max=1. - 1e-5)
-        return Y_prob, Y_hat
