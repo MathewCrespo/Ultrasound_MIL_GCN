@@ -514,3 +514,37 @@ class C_Attention(nn.Module):
         Y_prob, Y_hat, weights = self.forward(X)
         Y_prob = torch.clamp(Y_prob, min=1e-5, max=1. - 1e-5)
         return Y_prob, Y_hat, weights
+
+
+class Clinical(nn.Module): # clinical info to do prediction
+    def __init__(self, C=0):
+        self.C=C
+        self.classifier = nn.Sequential(
+            nn.Linear(self.C, 1),
+            nn.Sigmoid()
+        )
+    def forward(self,x):
+        x = x.squeeze(0)
+        Y_prob = self.classifier(x)
+        Y_hat = torch.ge(Y_prob, 0.5).float()
+        return Y_prob, Y_hat
+
+    def calculate_classification_error(self,C, Y):
+        Y = Y.float()
+        _, Y_hat= self.forward(C)
+        error = 1. - Y_hat.eq(Y).cpu().float().mean().item()
+
+        return error, Y_hat
+    
+    def calculate_objective(self,C, Y):
+        Y = Y.float()
+        Y_prob, _ = self.forward(C)
+        Y_prob = torch.clamp(Y_prob, min=1e-5, max=1. - 1e-5)
+        neg_log_likelihood = -1. * (Y * torch.log(Y_prob) + (1. - Y) * torch.log(1. - Y_prob))  # negative log bernoulli
+        #print("Y_prob is：", Y_prob)
+        return neg_log_likelihood, Y_prob
+
+    def calculate_weights(self, C):
+        Y_prob, Y_hat = self.forward(C)
+        Y_prob = torch.clamp(Y_prob, min=1e-5, max=1. - 1e-5)
+        return Y_prob, Y_hat
