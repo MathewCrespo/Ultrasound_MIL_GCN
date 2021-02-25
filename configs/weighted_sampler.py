@@ -7,8 +7,9 @@ from data.BMDataset import BMDataset
 from data.PatientBags import PatientBags
 from data.bag import BMBags
 from data.ruijin import RuijinBags
-from models.attentionMIL import Attention, GatedAttention, MIL, Res_Attention,H_Attention
+from models.attentionMIL import Attention, GatedAttention, MIL,H_Attention
 from trainers.MILTrainer import MILTrainer
+from trainers.MILTrainer_batch1 import MILTrainer_batch1
 from utils.logger import Logger
 from torch.optim import Adam
 import torch.optim as optim
@@ -83,7 +84,7 @@ class Config(object):
             self.global_step = 0
         
         # self.trainer = MTTrainer(self.net, self.optimizer, self.lrsch, self.loss, self.train_loader, self.val_loader, self.logger, self.global_step, mode=2)
-        self.trainer = MILTrainer(self.net, self.optimizer, self.lrsch, None, self.train_loader, self.val_loader, self.logger,
+        self.trainer = MILTrainer_batch1(self.net, self.optimizer, self.lrsch, None, self.train_loader, self.val_loader, self.logger,
                                      self.global_step)
     def update(self,dicts):
         for k,v in dicts.items():

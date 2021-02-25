@@ -13,7 +13,7 @@ from random import randint,sample
 
 class RuijinBags(Dataset):
     def __init__(self, root, sub_list, pre_transform, crop_mode=False, mix_mode=0,
-                 label_name="pLN分组3（1为0-2枚淋巴结转移；2为＞2枚淋巴结转移）"):
+                 label_name="手术淋巴结情况（0未转移；1转移）"):
         self.root = root
         self.label_name = label_name
         self.sub_list = sub_list
@@ -63,7 +63,7 @@ if __name__ == '__main__':
     transforms.Resize((224,224)),
     transforms.ToTensor(),
     ])
-    all_set = RuijinBags(root, [0,1,2,3,4],pre_transform)
+    all_set = RuijinBags(root, [0,1,2,3,4],pre_transform,label_name='手术淋巴结情况（0未转移；1转移）')
     
     label_set = []
     for i in range(len(all_set)):

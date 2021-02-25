@@ -53,9 +53,7 @@ class MIL(nn.Module):    # normal MIL without attention
         A = self.attention(H)  # NxK
         A = torch.transpose(A, 1, 0)  # KxN
         A = F.softmax(A, dim=1)  # softmax over N
-
         ## A -- weights
-
         M = torch.mm(A, H)  # KxL
         '''
         #print(H.shape)
