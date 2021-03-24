@@ -36,7 +36,7 @@ class Config(object):
         #self.log_dir = '/media/hhy/data/code_results/MILs/MIL_H_Attention'
 
         self.root = '/remote-home/my/Ultrasound_CV/data/Ruijin/clean'
-        self.log_dir = '/remote-home/my/hhy/Ultrasound_MIL/experiments/pln1_base0/'
+        self.log_dir = '/remote-home/my/hhy/Ultrasound_MIL/experiments/pln1_base4/'
         if not os.path.exists(self.log_dir):
             os.makedirs(self.log_dir)
         ##training config
@@ -65,8 +65,8 @@ class Config(object):
                     transforms.ToTensor()
         ])
 
-        self.trainbag = RuijinBags(self.root, [4,1,2,3],self.train_transform)
-        self.testbag = RuijinBags(self.root, [0], self.test_transform)
+        self.trainbag = RuijinBags(self.root, [3,0,1,2],self.train_transform)
+        self.testbag = RuijinBags(self.root, [4], self.test_transform)
         
         train_label_list = list(map(lambda x: int(x['label']), self.trainbag.patient_info))
         pos_ratio = sum(train_label_list) / len(train_label_list)

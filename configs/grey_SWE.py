@@ -5,9 +5,10 @@ sys.path.append('../')
 
 from data.BMDataset import BMDataset
 from data.PatientBags import PatientBags
+from data.ss_bag import SSBags
 from data.bag import BMBags
 from data.ruijin import RuijinBags
-from models.attentionMIL import Attention, GatedAttention, MIL, Res_Attention,H_Attention
+from models.attentionMIL import Attention, GatedAttention,H_Attention, S_H_Attention
 from trainers.MILTrainer import MILTrainer
 from utils.logger import Logger
 from torch.optim import Adam
@@ -35,11 +36,11 @@ class Config(object):
     '''
     def __init__(self):
         ##The top config
-        #self.data_root = '/media/hhy/data/USdata/MergePhase1/test_0.3'
-        #self.log_dir = '/media/hhy/data/code_results/MILs/MIL_H_Attention'
+        self.data_root = '/remote-home/my/Ultrasound_CV/data/MergePhase1/test_0.3'
+        self.log_dir = '/remote-home/my/hhy/Ultrasound_MIL/code_results/new'
 
-        self.root = '/remote-home/my/Ultrasound_CV/data/Ruijin/clean'
-        self.log_dir = '/remote-home/my/hhy/Ultrasound_MIL/code_results'
+        #self.root = '/remote-home/my/Ultrasound_CV/data/Ruijin/clean'
+        #self.log_dir = '/remote-home/my/hhy/Ultrasound_MIL/code_results'
         if not os.path.exists(self.log_dir):
             os.mkdir(self.log_dir)
         ##training config
@@ -47,7 +48,7 @@ class Config(object):
         self.epoch = 50
         self.resume = -1
         self.batch_size = 1
-        self.net = Attention()
+        self.net = S_H_Attention()
         self.net.cuda()
 
         self.optimizer = Adam(self.net.parameters(), lr=self.lr)
@@ -57,8 +58,8 @@ class Config(object):
         self.logger = Logger(self.log_dir)
 
         self.train_transform = transforms.Compose([
-                    transforms.RandomResizedCrop(224),
-                    transforms.ColorJitter(brightness = 0.25),
+                    transforms.Resize(224),
+                    #transforms.ColorJitter(brightness = 0.25),
                     transforms.RandomHorizontalFlip(0.5),
                     transforms.RandomVerticalFlip(0.5),
                     # transforms.ColorJitter(0.25, 0.25, 0.25, 0.25),
@@ -69,8 +70,8 @@ class Config(object):
                     transforms.ToTensor()
         ])
 
-        self.trainbag = RuijinBags(self.root, [0,1,2,3],self.test_transform)
-        self.testbag = RuijinBags(self.root, [4], self.test_transform)
+        self.trainbag = SSBags(self.data_root+'/train',pre_transform=self.train_transform)
+        self.testbag = SSBags(self.data_root+'/test', pre_transform=self.test_transform)
 
         # patient bags
         #self.trainbag = PatientBags(self.data_root+'/train', self.train_transform)
@@ -86,9 +87,9 @@ class Config(object):
 
         #self.train_loader = DataLoader(self.trainbag, batch_size=1, shuffle=True, num_workers=8)
         #self.val_loader = DataLoader(self.testbag, batch_size=1, shuffle=False, num_workers=8)
-        self.train_loader = DataLoader(self.trainbag, batch_size=4, collate_fn = my_collate, shuffle=True, num_workers=8)
+        self.train_loader = DataLoader(self.trainbag, batch_size=1, shuffle=True, num_workers=8)
         #print (len(self.train_loader))
-        self.val_loader = DataLoader(self.testbag, batch_size=4, collate_fn = my_collate, shuffle=False, num_workers=8)
+        self.val_loader = DataLoader(self.testbag, batch_size=1, shuffle=False, num_workers=8)
 
         if self.resume > 0:
             self.net, self.optimizer, self.lrsch, self.loss, self.global_step = self.logger.load(self.net, self.optimizer, self.lrsch, self.loss, self.resume)

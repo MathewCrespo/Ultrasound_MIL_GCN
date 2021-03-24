@@ -3,10 +3,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from .ResNet import ResNet10, ResNet18
 
-class MIL(nn.Module):    # normal MIL without attention 
-    # L - feature dimensions D - variance in attention layer
+
+## Selective Search Hierarchical Attention Multiple Instance Learning
+
+class S_H_Attention(nn.Module):
     def __init__(self, input_dim=3, L=500, D=128, K=1):
-        super(MIL, self).__init__()
+        super(S_H_Attention, self).__init__()
         self.input_dim = input_dim
         self.L = L
         self.D = D
@@ -19,74 +21,101 @@ class MIL(nn.Module):    # normal MIL without attention
             nn.Conv2d(20, 50, kernel_size=5),
             nn.ReLU(),
             nn.MaxPool2d(2, stride=2)
-            #nn.AdaptiveMaxPool2d(4)
+            ##nn.AdaptiveMaxPool2d(4)
         )
-        # L-dimension feature for each instance
+
         self.feature_extractor_part2 = nn.Sequential(
             nn.Linear(50 * 53 * 53, self.L),
             nn.ReLU(),
         )
-        ### change here
-        '''
-        self.attention = nn.Sequential(
+
+        self.attention1 = nn.Sequential(
             nn.Linear(self.L, self.D),
             nn.Tanh(),
             nn.Linear(self.D, self.K)
         )
-        ''' 
+
+        self.attention2 = nn.Sequential(
+            nn.Linear(self.L, self.D),
+            nn.Tanh(),
+            nn.Linear(self.D, self.K)
+        )
+
         self.classifier = nn.Sequential(
             nn.Linear(self.L*self.K, 1),
             nn.Sigmoid()
         )
 
-    def forward(self, x):
-        
+    def forward(self, x, idx_list, debug=True):
         x = x.squeeze(0)
+        if debug:
+            print("x shape:", x.shape)
 
         H = self.feature_extractor_part1(x)
-
+        if debug:
+            print("feature_extractor_part1 shape:", H.shape)
         H = H.view(-1, 50 * 53 * 53)
+        if debug:
+            print("view shape:", H.shape)
+        H = self.feature_extractor_part2(H)  # NxL
+        if debug:
+            print("feature_extractor_part2 shape:", H.shape)
 
-        H = self.feature_extractor_part2(H)     # NxL
+        ## doing attention on image patch level
 
-        '''
-        A = self.attention(H)  # NxK
-        A = torch.transpose(A, 1, 0)  # KxN
-        A = F.softmax(A, dim=1)  # softmax over N
-        ## A -- weights
-        M = torch.mm(A, H)  # KxL
-        '''
-        #print(H.shape)
+        A = self.attention1(H)  # NxK
+        print('A shape is {}'.format(A.shape))
+        A = torch.transpose(A, 0, 1)  # KxN
 
-        
+        img_features = []
+        for i in range(len(idx_list)-1):
+            w = A[:,idx_list[i]:idx_list[i+1]]
+            w = F.softmax(w,dim=1)
+            f = H[idx_list[i]:idx_list[i+1],:]
+            img_f = torch.mm(w,f)
+            print('img shape is {}'.format(img_f.shape))
+            img_features.append(img_f)
 
-        # no attention -- average pooling   Nx1
-        Y_prob = self.classifier(H)
-        
-    
-        Y_prob,_= torch.max(Y_prob, dim=0)
-        #print("Y_prob:",Y_prob)
+        instance_f = torch.cat([x for x in img_features],dim = 0)
+        print('instance_f shape is {}'.format(instance_f.shape))
+
+        B_attention = self.attention2(instance_f)
+        B_attention = torch.transpose(B_attention, 0, 1)
+        B_attention = F.softmax(B_attention, dim=1)
+        if debug:
+            print('b attention:', B_attention.shape)
+        bag_feature = torch.mm(B_attention, instance_f)
+        if debug:
+            print('bag feature:', bag_feature.shape)
+
+        Y_prob = self.classifier(bag_feature)
         Y_hat = torch.ge(Y_prob, 0.5).float()
 
-        return Y_prob, Y_hat, H
+        return Y_prob, Y_hat, A
 
     # AUXILIARY METHODS
-    def calculate_classification_error(self, X, Y):
+    def calculate_classification_error(self, X, Y,idx_list):
         Y = Y.float()
-        _, Y_hat, _ = self.forward(X)
+        _, Y_hat, _ = self.forward(X,idx_list)
         error = 1. - Y_hat.eq(Y).cpu().float().mean().item()
 
         return error, Y_hat
 
-    def calculate_objective(self, X, Y):
+    def calculate_objective(self, X, Y,idx_list):
         Y = Y.float()
-        Y_prob, _,M = self.forward(X)
+        Y_prob, _, A = self.forward(X,idx_list)
         Y_prob = torch.clamp(Y_prob, min=1e-5, max=1. - 1e-5)
         neg_log_likelihood = -1. * (Y * torch.log(Y_prob) + (1. - Y) * torch.log(1. - Y_prob))  # negative log bernoulli
+        #print("Y_prob is：", Y_prob)
+        return neg_log_likelihood, Y_prob, A
+    
+    def calculate_weights(self, X):
+        Y_prob, Y_hat, weights = self.forward(X)
+        Y_prob  = torch.clamp(Y_prob, min=1e-5, max=1. - 1e-5)
+        return Y_prob, Y_hat, weights
 
-        return neg_log_likelihood, Y_prob, M
 
-## Hierarchical Attention Multiple Instance Learning
+
 
 class H_Attention(nn.Module):
     def __init__(self, input_dim=3, L=500, D=128, K=1):
@@ -358,72 +387,3 @@ class GatedAttention(nn.Module):
 
         return neg_log_likelihood, Y_prob, A
 
-class Res_Attention(nn.Module):
-    def __init__(self, input_dim=3, L=500, D=128, K=1):
-        super(Res_Attention, self).__init__()
-        self.input_dim = input_dim
-        self.L = L
-        self.D = D
-        self.K = K
-
-        self.feature_extractor_part1 = ResNet18()
-
-        self.feature_extractor_part2 = nn.Sequential(
-            nn.Linear(512 * 7 * 7, self.L),
-            nn.ReLU(),
-        )
-
-        self.attention = nn.Sequential(
-            nn.Linear(self.L, self.D),
-            nn.Tanh(),
-            nn.Linear(self.D, self.K)
-        )
-
-        self.classifier = nn.Sequential(
-            nn.Linear(self.L*self.K, 1),
-            nn.Sigmoid()
-        )
-
-    def forward(self, x, debug=False):
-        if debug:
-            print("input shape:", x.shape)
-        x = x.squeeze(0)
-        if debug:
-            print("squeeze shape:", x.shape)
-
-        H = self.feature_extractor_part1(x)
-        if debug:
-            print("feature_extractor_part1 shape:", H.shape)
-        H = H.view(-1, 512 * 7 * 7)
-        if debug:
-            print("view shape:", H.shape)
-        H = self.feature_extractor_part2(H)  # NxL
-        if debug:
-            print("feature_extractor_part2 shape:", H.shape)
-
-        A = self.attention(H)  # NxK
-        A = torch.transpose(A, 1, 0)  # KxN
-        A = F.softmax(A, dim=1)  # softmax over N
-
-        M = torch.mm(A, H)  # KxL
-
-        Y_prob = self.classifier(M)
-        Y_hat = torch.ge(Y_prob, 0.5).float()
-
-        return Y_prob, Y_hat, A
-
-    # AUXILIARY METHODS
-    def calculate_classification_error(self, X, Y):
-        Y = Y.float()
-        _, Y_hat, _ = self.forward(X)
-        error = 1. - Y_hat.eq(Y).cpu().float().mean().item()
-
-        return error, Y_hat
-
-    def calculate_objective(self, X, Y):
-        Y = Y.float()
-        Y_prob, _, A = self.forward(X)
-        Y_prob = torch.clamp(Y_prob, min=1e-5, max=1. - 1e-5)
-        neg_log_likelihood = -1. * (Y * torch.log(Y_prob) + (1. - Y) * torch.log(1. - Y_prob))  # negative log bernoulli
-        #print("Y_prob is：", Y_prob)
-        return neg_log_likelihood, Y_prob, A

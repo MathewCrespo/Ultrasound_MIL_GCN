@@ -13,8 +13,9 @@ from utils.logger import Logger
 import argparse
 from importlib import import_module
 
+
 parser = argparse.ArgumentParser(description='Ultrasound CV Framework')
-parser.add_argument('--config',type=str,default='weighted_sampler_base')
+parser.add_argument('--config',type=str,default='grey_SWE')
 
 if __name__=='__main__':
     args = parser.parse_args()

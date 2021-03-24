@@ -51,19 +51,19 @@ class MILTrainer(object):
         prob = []
         pred = []
         target = []
-        for batch_data, batch_label in (tqdm(self.train_loader, ascii=True, ncols=60)):
+        for data, label, idx_list in (tqdm(self.train_loader, ascii=True, ncols=60)):
             # reset gradients
             self.optimizer.zero_grad()
-            for idx, data in enumerate(batch_data):
-                data = data.cuda()
-                bag_label = batch_label[idx].cuda()
-                loss, prob_label, _ = self.net.calculate_objective(data, bag_label)
-                train_loss += loss.data[0]
-                error, predicted_label = self.net.calculate_classification_error(data, bag_label)
-                train_error += error
-                target.append(bag_label.cpu().detach().numpy().ravel()) # bag_label or label??
-                pred.append(predicted_label.cpu().detach().numpy().ravel())
-                prob.append(prob_label.cpu().detach().numpy().ravel())
+            data = data.cuda()
+            bag_label = label.cuda()
+            #idx_list = idx_list.cuda()
+            loss, prob_label, _ = self.net.calculate_objective(data, bag_label, idx_list)
+            train_loss += loss.item()
+            error, predicted_label = self.net.calculate_classification_error(data, bag_label,idx_list)
+            train_error += error
+            target.append(bag_label.cpu().detach().numpy().ravel()) # bag_label or label??
+            pred.append(predicted_label.cpu().detach().numpy().ravel())
+            prob.append(prob_label.cpu().detach().numpy().ravel())
 
             # backward pass
             loss.backward()
