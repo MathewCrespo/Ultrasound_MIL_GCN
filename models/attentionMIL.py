@@ -25,7 +25,7 @@ class S_H_Attention(nn.Module):
         )
 
         self.feature_extractor_part2 = nn.Sequential(
-            nn.Linear(50 * 53 * 53, self.L),
+            nn.Linear(50 * 4 * 4, self.L),
             nn.ReLU(),
         )
 
@@ -46,7 +46,7 @@ class S_H_Attention(nn.Module):
             nn.Sigmoid()
         )
 
-    def forward(self, x, idx_list, debug=True):
+    def forward(self, x, idx_list, debug=False):
         x = x.squeeze(0)
         if debug:
             print("x shape:", x.shape)
@@ -54,7 +54,7 @@ class S_H_Attention(nn.Module):
         H = self.feature_extractor_part1(x)
         if debug:
             print("feature_extractor_part1 shape:", H.shape)
-        H = H.view(-1, 50 * 53 * 53)
+        H = H.view(-1, 50 * 4* 4)
         if debug:
             print("view shape:", H.shape)
         H = self.feature_extractor_part2(H)  # NxL
@@ -64,7 +64,8 @@ class S_H_Attention(nn.Module):
         ## doing attention on image patch level
 
         A = self.attention1(H)  # NxK
-        print('A shape is {}'.format(A.shape))
+        if debug:
+            print('A shape is {}'.format(A.shape))
         A = torch.transpose(A, 0, 1)  # KxN
 
         img_features = []
@@ -73,11 +74,13 @@ class S_H_Attention(nn.Module):
             w = F.softmax(w,dim=1)
             f = H[idx_list[i]:idx_list[i+1],:]
             img_f = torch.mm(w,f)
-            print('img shape is {}'.format(img_f.shape))
+            if debug:
+                print('img shape is {}'.format(img_f.shape))
             img_features.append(img_f)
 
         instance_f = torch.cat([x for x in img_features],dim = 0)
-        print('instance_f shape is {}'.format(instance_f.shape))
+        if debug:
+            print('instance_f shape is {}'.format(instance_f.shape))
 
         B_attention = self.attention2(instance_f)
         B_attention = torch.transpose(B_attention, 0, 1)
@@ -101,13 +104,15 @@ class S_H_Attention(nn.Module):
 
         return error, Y_hat
 
-    def calculate_objective(self, X, Y,idx_list):
+    def calculate_all(self, X, Y,idx_list):
         Y = Y.float()
-        Y_prob, _, A = self.forward(X,idx_list)
+        Y_prob, Y_hat, A = self.forward(X,idx_list)
+
+        error = 1. - Y_hat.eq(Y).cpu().float().mean().item()
         Y_prob = torch.clamp(Y_prob, min=1e-5, max=1. - 1e-5)
         neg_log_likelihood = -1. * (Y * torch.log(Y_prob) + (1. - Y) * torch.log(1. - Y_prob))  # negative log bernoulli
         #print("Y_prob is：", Y_prob)
-        return neg_log_likelihood, Y_prob, A
+        return neg_log_likelihood, error, Y_prob, Y_hat 
     
     def calculate_weights(self, X):
         Y_prob, Y_hat, weights = self.forward(X)

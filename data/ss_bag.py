@@ -261,11 +261,13 @@ if __name__=="__main__":
     ])
 
     trainset = SSBags(root, pre_transform=pre,selective_mode=True)
-
-    data,label,idx = trainset[0]
-    print(data.shape)
-    print(label)
-    print(idx)
+    numset = []
+    for i in range(len(trainset)):
+        data,label,idx_list = trainset[i]
+        s = data.shape[0]
+        numset.append(s)
+        print(s)
+    print(numset)
     '''
     bag_state = []
     

@@ -57,9 +57,8 @@ class MILTrainer(object):
             data = data.cuda()
             bag_label = label.cuda()
             #idx_list = idx_list.cuda()
-            loss, prob_label, _ = self.net.calculate_objective(data, bag_label, idx_list)
+            loss, error, prob_label, predicted_label = self.net.calculate_all(data, bag_label, idx_list)
             train_loss += loss.item()
-            error, predicted_label = self.net.calculate_classification_error(data, bag_label,idx_list)
             train_error += error
             target.append(bag_label.cpu().detach().numpy().ravel()) # bag_label or label??
             pred.append(predicted_label.cpu().detach().numpy().ravel())
@@ -101,19 +100,17 @@ class MILTrainer(object):
         target = []
         pred = []
         prob = []
-        for batch_data, batch_label in tqdm(self.test_loader, ascii=True, ncols = 60):
-            for idx, data in enumerate(batch_data):
-                data = data.cuda()
-                bag_label = batch_label[idx].cuda()
-            
-                loss, prob_label, attention_weights = self.net.calculate_objective(data, bag_label)
-                test_loss += loss.data[0]
-                error, predicted_label = self.net.calculate_classification_error(data, bag_label)
-                test_error += error
-            # label or bag label?
-                target.append(bag_label.cpu().detach().numpy().ravel())
-                pred.append(predicted_label.cpu().detach().numpy().ravel())
-                prob.append(prob_label.cpu().detach().numpy().ravel())
+        for data, label, idx_list in tqdm(self.test_loader, ascii=True, ncols = 60):
+            data = data.cuda()
+            bag_label = label.cuda()
+        
+            loss, error, prob_label, predicted_label = self.net.calculate_all(data, bag_label,idx_list)
+            test_loss += loss.item()
+            test_error += error
+        # label or bag label?
+            target.append(bag_label.cpu().detach().numpy().ravel())
+            pred.append(predicted_label.cpu().detach().numpy().ravel())
+            prob.append(prob_label.cpu().detach().numpy().ravel())
 
             
         '''
@@ -139,10 +136,11 @@ class MILTrainer(object):
 
         self.logger.log_scalar(prefix+'/'+'AUC', auc_score, print=True)
         self.logger.log_scalar(prefix+'/'+'Acc', acc, print= True)
-        self.logger.log_scalar(prefix+'/'+'Malignant_precision', cls_report['1']['precision'], print= True)
-        self.logger.log_scalar(prefix+'/'+'Benign_precision', cls_report['0']['precision'], print= True)
-        self.logger.log_scalar(prefix+'/'+'Malignant_recall', cls_report['1']['recall'], print= True)
-        self.logger.log_scalar(prefix+'/'+'Benign_recall', cls_report['0']['recall'], print= True)
+        self.logger.log_scalar(prefix+'/'+'Malignant_precision', cls_report['1.0']['precision'], print= True)
+        self.logger.log_scalar(prefix+'/'+'Benign_precision', cls_report['0.0']['precision'], print= True)
+        self.logger.log_scalar(prefix+'/'+'Malignant_recall', cls_report['1.0']['recall'], print= True)
+        self.logger.log_scalar(prefix+'/'+'Benign_recall', cls_report['0.0']['recall'], print= True)
+        self.logger.log_scalar(prefix+'/'+'Malignant_F1', cls_report['1.0']['f1-score'], print= True)
         '''
         self.logger.log_scalar(prefix+'/'+'Accuracy', acc, print=True)
         self.logger.log_scalar(prefix+'/'+'Precision', cls_report['1.0']['precision'], print=True)

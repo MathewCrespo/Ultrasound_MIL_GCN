@@ -37,7 +37,7 @@ class Config(object):
     def __init__(self):
         ##The top config
         self.data_root = '/remote-home/my/Ultrasound_CV/data/MergePhase1/test_0.3'
-        self.log_dir = '/remote-home/my/hhy/Ultrasound_MIL/code_results/new'
+        self.log_dir = '/remote-home/my/hhy/Ultrasound_MIL/code_results/ss_mil'
 
         #self.root = '/remote-home/my/Ultrasound_CV/data/Ruijin/clean'
         #self.log_dir = '/remote-home/my/hhy/Ultrasound_MIL/code_results'
@@ -58,7 +58,7 @@ class Config(object):
         self.logger = Logger(self.log_dir)
 
         self.train_transform = transforms.Compose([
-                    transforms.Resize(224),
+                    transforms.Resize(28),
                     #transforms.ColorJitter(brightness = 0.25),
                     transforms.RandomHorizontalFlip(0.5),
                     transforms.RandomVerticalFlip(0.5),
@@ -66,7 +66,7 @@ class Config(object):
                     transforms.ToTensor()
         ])
         self.test_transform = transforms.Compose([
-                    transforms.Resize((224,224)),
+                    transforms.Resize(28),
                     transforms.ToTensor()
         ])
 
