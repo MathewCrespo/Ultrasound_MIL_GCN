@@ -8,7 +8,8 @@ from data.PatientBags import PatientBags
 from data.ss_bag import SSBags
 from data.bag import BMBags
 from data.ruijin import RuijinBags
-from models.attentionMIL import Attention, GatedAttention,H_Attention, S_H_Attention
+from models.attentionMIL import Attention, GatedAttention,H_Attention, S_H_Attention, S_H_Attention2
+from models.graph_attention import H_Attention_Graph
 from trainers.MILTrainer import MILTrainer
 from utils.logger import Logger
 from torch.optim import Adam
@@ -37,7 +38,7 @@ class Config(object):
     def __init__(self):
         ##The top config
         self.data_root = '/remote-home/my/Ultrasound_CV/data/MergePhase1/test_0.3'
-        self.log_dir = '/remote-home/my/hhy/Ultrasound_MIL/code_results/ss_mil'
+        self.log_dir = '/remote-home/my/hhy/Ultrasound_MIL/code_results/H_Attention_Graph'
 
         #self.root = '/remote-home/my/Ultrasound_CV/data/Ruijin/clean'
         #self.log_dir = '/remote-home/my/hhy/Ultrasound_MIL/code_results'
@@ -48,7 +49,7 @@ class Config(object):
         self.epoch = 50
         self.resume = -1
         self.batch_size = 1
-        self.net = S_H_Attention()
+        self.net = H_Attention_Graph()
         self.net.cuda()
 
         self.optimizer = Adam(self.net.parameters(), lr=self.lr)
@@ -70,8 +71,8 @@ class Config(object):
                     transforms.ToTensor()
         ])
 
-        self.trainbag = SSBags(self.data_root+'/train',pre_transform=self.train_transform)
-        self.testbag = SSBags(self.data_root+'/test', pre_transform=self.test_transform)
+        self.trainbag = SSBags(self.data_root, pre_transform=self.train_transform, sub_list=[1,2,3,4])
+        self.testbag = SSBags(self.data_root, pre_transform=self.test_transform, sub_list = [0])
 
         # patient bags
         #self.trainbag = PatientBags(self.data_root+'/train', self.train_transform)

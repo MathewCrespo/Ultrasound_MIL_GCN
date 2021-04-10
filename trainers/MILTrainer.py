@@ -47,7 +47,6 @@ class MILTrainer(object):
         self.net.train()
         self.logger.update_step()
         train_loss = 0.
-        train_error = 0.
         prob = []
         pred = []
         target = []
@@ -57,9 +56,8 @@ class MILTrainer(object):
             data = data.cuda()
             bag_label = label.cuda()
             #idx_list = idx_list.cuda()
-            loss, error, prob_label, predicted_label = self.net.calculate_all(data, bag_label, idx_list)
+            prob_label, predicted_label, loss = self.net(data, bag_label, idx_list)
             train_loss += loss.item()
-            train_error += error
             target.append(bag_label.cpu().detach().numpy().ravel()) # bag_label or label??
             pred.append(predicted_label.cpu().detach().numpy().ravel())
             prob.append(prob_label.cpu().detach().numpy().ravel())
@@ -84,7 +82,6 @@ class MILTrainer(object):
         print('prob is {}'.format(prob))
         '''
         train_loss /= len(self.train_loader)
-        train_error /= len(self.train_loader)
         self.log_metric("Train", target, prob, pred)
 
         if not (self.logger.global_step % self.save_interval):
@@ -96,7 +93,6 @@ class MILTrainer(object):
     def test(self):
         self.net.eval()
         test_loss = 0.
-        test_error = 0.
         target = []
         pred = []
         prob = []
@@ -104,9 +100,8 @@ class MILTrainer(object):
             data = data.cuda()
             bag_label = label.cuda()
         
-            loss, error, prob_label, predicted_label = self.net.calculate_all(data, bag_label,idx_list)
+            prob_label, predicted_label, loss = self.net(data, bag_label,idx_list)
             test_loss += loss.item()
-            test_error += error
         # label or bag label?
             target.append(bag_label.cpu().detach().numpy().ravel())
             pred.append(predicted_label.cpu().detach().numpy().ravel())

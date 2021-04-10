@@ -33,7 +33,7 @@ class SSBags(Dataset):
         modality: (int) indicate which modality to use. 0: US 1: SWE 2: US & SWE
     '''
     def __init__(self, root, pre_transform=None, modality=0, cls_task='BM', 
-    metric_mode='patient', selective_mode = True, mix_mode=0):
+    metric_mode='patient', selective_mode = True, mix_mode=0, sub_list = [0]):
         
         self.modality = modality
         self.root = root
@@ -46,7 +46,9 @@ class SSBags(Dataset):
         self.cls_task = cls_task
         self.metric_mode = metric_mode
         self.num_pbag = 0
-        self.scan()
+        self.sub_list = sub_list
+        for i in self.sub_list:
+            self.scan(os.path.join(self.root,str(i)))
         #self.neg_ins, self.num_neg_ins = self.get_neg_ins()
         #print(len(self.neg_ins))
         self.cut_null()
@@ -174,10 +176,10 @@ class SSBags(Dataset):
             return bag_imgs, label, replace_num   # when training and testing, rember to add (imgs, label, _) in ...
 
 
-    def scan(self):
+    def scan(self, now_root):
         # 1- malignant  0-benign
-        self.M_path = os.path.join(self.root, "Malignant")
-        self.B_path = os.path.join(self.root, "Benign")
+        self.M_path = os.path.join(now_root, "Malignant")
+        self.B_path = os.path.join(now_root, "Benign")
         # number of M
         ##scan benign path
         idx = 0
