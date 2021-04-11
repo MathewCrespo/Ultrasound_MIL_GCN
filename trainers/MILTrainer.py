@@ -124,10 +124,10 @@ class MILTrainer(object):
         target_list = np.concatenate(target)
         cls_report = classification_report(target_list, pred_list, output_dict=True, zero_division=0)
         acc = accuracy_score(target_list, pred_list)
-        print ('acc is {}'.format(acc))
+        #print ('acc is {}'.format(acc))
         auc_score = roc_auc_score(target_list, prob_list)
         print('auc is {}'.format(auc_score))
-        print(cls_report)
+        #print(cls_report)
 
         self.logger.log_scalar(prefix+'/'+'AUC', auc_score, print=True)
         self.logger.log_scalar(prefix+'/'+'Acc', acc, print= True)
@@ -136,6 +136,9 @@ class MILTrainer(object):
         self.logger.log_scalar(prefix+'/'+'Malignant_recall', cls_report['1.0']['recall'], print= True)
         self.logger.log_scalar(prefix+'/'+'Benign_recall', cls_report['0.0']['recall'], print= True)
         self.logger.log_scalar(prefix+'/'+'Malignant_F1', cls_report['1.0']['f1-score'], print= True)
+
+
+        
         '''
         self.logger.log_scalar(prefix+'/'+'Accuracy', acc, print=True)
         self.logger.log_scalar(prefix+'/'+'Precision', cls_report['1.0']['precision'], print=True)

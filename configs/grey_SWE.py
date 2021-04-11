@@ -37,8 +37,8 @@ class Config(object):
     '''
     def __init__(self):
         ##The top config
-        self.data_root = '/remote-home/my/Ultrasound_CV/data/MergePhase1/test_0.3'
-        self.log_dir = '/remote-home/my/hhy/Ultrasound_MIL/code_results/H_Attention_Graph'
+        self.data_root = '/remote-home/my/Ultrasound_CV/data/MergePhase1/5folds'
+        self.log_dir = '/remote-home/my/hhy/Ultrasound_MIL/code_results/5folds/Graph/4'
 
         #self.root = '/remote-home/my/Ultrasound_CV/data/Ruijin/clean'
         #self.log_dir = '/remote-home/my/hhy/Ultrasound_MIL/code_results'
@@ -71,8 +71,8 @@ class Config(object):
                     transforms.ToTensor()
         ])
 
-        self.trainbag = SSBags(self.data_root, pre_transform=self.train_transform, sub_list=[1,2,3,4])
-        self.testbag = SSBags(self.data_root, pre_transform=self.test_transform, sub_list = [0])
+        self.trainbag = SSBags(self.data_root, pre_transform=self.train_transform, sub_list=[0,1,2,3])
+        self.testbag = SSBags(self.data_root, pre_transform=self.test_transform, sub_list = [4])
 
         # patient bags
         #self.trainbag = PatientBags(self.data_root+'/train', self.train_transform)
