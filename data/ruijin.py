@@ -93,7 +93,7 @@ if __name__ == '__main__':
                           "可疑程度（0无可疑；1轻度可疑；2中度可疑；3重度可疑）"]
     all_set = RuijinBags(root, [0,1,2,3,4],pre_transform, clinical_list=clinical_list,info_type=1)
 
-    print(all_set[0])
+    print(all_set[0][0].shape)
     '''
     label_set = []
     for i in range(len(all_set)):
